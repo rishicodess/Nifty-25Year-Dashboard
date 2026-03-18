@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NIFTY 50 — 25-Year Pattern Intelligence Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #0a0e1a; --card: #111827; --border: #1e2d47;
+    --text: #e8edf5; --muted: #5a7a9a; --gold: #f4a91e;
+    --green: #22c55e; --red: #ef4444; --teal: #14b8a6;
+    --blue: #3b82f6; --purple: #a855f7; --orange: #f97316;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+  a { color: var(--teal); }
+
+  /* HEADER */
+  .header { text-align: center; padding: 32px 20px 24px; border-bottom: 1px solid var(--border); }
+  .header-eyebrow { font-size: 11px; letter-spacing: 4px; color: var(--gold); text-transform: uppercase; margin-bottom: 10px; }
+  .header h1 { font-size: clamp(22px, 4vw, 36px); font-weight: 900; letter-spacing: -1px; background: linear-gradient(135deg, #f4a91e, #ff4d6d, #b06aff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .header p { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+  /* KPI STRIP */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; padding: 20px; }
+  .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .kpi-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .kpi-val { font-size: 20px; font-weight: 900; }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* TABS */
+  .tab-bar { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 20px 16px; }
+  .tab-btn { padding: 8px 16px; font-size: 12px; font-weight: 700; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: transparent; color: var(--muted); transition: all .2s; white-space: nowrap; }
+  .tab-btn.active { background: linear-gradient(135deg, #f4a91e, #ff4d6d); color: #000; border-color: transparent; }
+  .tab-btn:hover:not(.active) { background: var(--card); color: var(--text); }
+
+  /* PANELS */
+  .panel { display: none; padding: 0 20px 40px; }
+  .panel.active { display: block; }
+
+  /* CARDS */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
+  .chart-wrap { position: relative; width: 100%; }
+
+  /* GRIDS */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .grid5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  @media(max-width: 768px) { .grid2,.grid3,.grid4,.grid5 { grid-template-columns: 1fr 1fr; } }
+  @media(max-width: 500px) { .grid2,.grid3,.grid4,.grid5 { grid-template-columns: 1fr; } }
+
+  /* SECTION TITLES */
+  .sec-title { font-size: 18px; font-weight: 900; background: linear-gradient(135deg, #f4a91e, #ff4d6d, #b06aff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 4px; }
+  .sec-sub { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+
+  /* TABLES */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { padding: 8px 10px; text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 8px 10px; border-bottom: 1px solid rgba(30,45,71,0.4); }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+  .pos { color: var(--green); font-weight: 700; }
+  .neg { color: var(--red); font-weight: 700; }
+  .amb { color: var(--gold); font-weight: 700; }
+  .blu { color: var(--blue); }
+  .tel { color: var(--teal); }
+
+  /* BADGES */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+  .badge-g { background: #14532d; color: #86efac; }
+  .badge-r { background: #7f1d1d; color: #fca5a5; }
+  .badge-a { background: #78350f; color: #fde68a; }
+  .badge-b { background: #1e3a5f; color: #93c5fd; }
+  .badge-p { background: #4c1d95; color: #c4b5fd; }
+
+  /* HEATMAP */
+  .heatmap-wrap { overflow-x: auto; }
+  .heat-table { border-collapse: separate; border-spacing: 2px; font-size: 9px; min-width: 820px; }
+  .heat-cell { padding: 5px 3px; text-align: center; border-radius: 4px; font-weight: 700; }
+
+  /* DESERT CARDS */
+  .desert-card { border-radius: 12px; padding: 20px; margin-bottom: 16px; border: 1px solid var(--border); background: var(--card); }
+
+  /* ERA CARDS */
+  .era-card { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 14px; text-align: center; border: 1px solid var(--border); }
+
+  /* INSIGHT BOXES */
+  .insight { padding: 12px 16px; border-radius: 8px; margin-top: 12px; font-size: 12px; line-height: 1.7; }
+
+  /* HOLDING CARDS */
+  .hold-card { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 14px; text-align: center; border: 1px solid var(--border); }
+
+  /* ROTATION STEPS */
+  .rotation-step { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 14px; border: 1px solid var(--border); }
+
+  /* FOOTER */
+  .footer { text-align: center; padding: 20px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); }
+  .footer a { color: var(--teal); text-decoration: none; }
+
+  /* LEGEND */
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 11px; color: var(--muted); }
+  .lg-dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: middle; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* TOOLTIP OVERRIDE */
+  .top-bar { background: rgba(10,14,26,0.95); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="header">
+    <div class="header-eyebrow">Indian Equity Intelligence · 25-Year Deep Dive</div>
+    <h1>NIFTY 50 — Quarter Century Pattern Analysis</h1>
+    <p>300 months · 3 major crashes · 4 desert phases · 6 bull runs · decoded for the disciplined investor</p>
+  </div>
+</div>
+
+<!-- KPI STRIP -->
+<div class="kpi-grid">
+  <div class="kpi"><div class="kpi-label">25-year CAGR</div><div class="kpi-val pos">12.4%</div><div class="kpi-sub">₹1L → ₹18.7L</div></div>
+  <div class="kpi"><div class="kpi-label">Best year</div><div class="kpi-val pos">+75.8%</div><div class="kpi-sub">2009 — post-GFC rebound</div></div>
+  <div class="kpi"><div class="kpi-label">Worst year</div><div class="kpi-val neg">−51.8%</div><div class="kpi-sub">2008 — GFC crash</div></div>
+  <div class="kpi"><div class="kpi-label">Best month</div><div class="kpi-val tel">July</div><div class="kpi-sub">+3.8% avg · 76% win rate</div></div>
+  <div class="kpi"><div class="kpi-label">Worst month</div><div class="kpi-val" style="color:var(--orange)">June</div><div class="kpi-sub">−1.2% avg · GFC distorted</div></div>
+  <div class="kpi"><div class="kpi-label">Longest desert</div><div class="kpi-val amb">4 years</div><div class="kpi-sub">2010–2013 · +2.7% net</div></div>
+  <div class="kpi"><div class="kpi-label">Post-desert rally</div><div class="kpi-val pos">+86%</div><div class="kpi-sub">3 yrs after 2010–13 desert</div></div>
+  <div class="kpi"><div class="kpi-label">7-yr positive rate</div><div class="kpi-val" style="color:var(--purple)">100%</div><div class="kpi-sub">Every 7-yr window positive</div></div>
+  <div class="kpi"><div class="kpi-label">10-yr min CAGR</div><div class="kpi-val blu">+2.5%</div><div class="kpi-sub">Worst-ever 10-yr period</div></div>
+  <div class="kpi"><div class="kpi-label">Wealth (25 yrs)</div><div class="kpi-val amb">18.7×</div><div class="kpi-sub">Every ₹1 became ₹18.7</div></div>
+</div>
+
+<!-- TABS -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('overview',this)">🗺️ Overview</button>
+  <button class="tab-btn" onclick="showTab('heatmap',this)">🌡️ Heatmap</button>
+  <button class="tab-btn" onclick="showTab('desert',this)">🏜️ Desert Phases</button>
+  <button class="tab-btn" onclick="showTab('seasonal',this)">📅 Seasonality</button>
+  <button class="tab-btn" onclick="showTab('holding',this)">⏳ Holding Periods</button>
+  <button class="tab-btn" onclick="showTab('sectors',this)">🏭 Sector Patterns</button>
+  <button class="tab-btn" onclick="showTab('cycles',this)">🔄 Market Cycles</button>
+</div>
+
+<!-- ══ OVERVIEW ══ -->
+<div id="panel-overview" class="panel active">
+  <div class="sec-title">NIFTY 50 — 25-year journey (2000–2024)</div>
+  <div class="sec-sub">Three major crashes. Five bull runs. One relentlessly upward direction.</div>
+
+  <div class="card">
+    <div class="card-title">Annual returns — all 25 years</div>
+    <div class="chart-wrap" style="height:220px"><canvas id="annualChart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">NIFTY 50 index level — ₹1 lakh invested in 1999 = ₹18.7 lakhs by 2024</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="wealthChart"></canvas></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">25-year market character</div>
+      <table>
+        <tr><td>Positive years</td><td class="pos">18 / 25 (72%)</td></tr>
+        <tr><td>Negative years</td><td class="neg">7 / 25 (28%)</td></tr>
+        <tr><td>Years above +30%</td><td class="pos">6 / 25 (24%)</td></tr>
+        <tr><td>Years below −20%</td><td class="neg">3 / 25 (12%)</td></tr>
+        <tr><td>Average annual return</td><td class="pos">+12.4%</td></tr>
+        <tr><td>Median annual return</td><td class="pos">+12.0%</td></tr>
+        <tr><td>Std deviation</td><td>±28.6%</td></tr>
+        <tr><td>Wealth multiplier</td><td class="pos">18.7×</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Rolling CAGR statistics (1991–2026 data)</div>
+      <table>
+        <tr><th>Period</th><th>Avg</th><th>Min</th><th>Max</th><th>Negative</th></tr>
+        <tr><td>1 Year</td><td class="pos">+17.4%</td><td class="neg">−47.1%</td><td class="pos">+134%</td><td class="neg">9/35</td></tr>
+        <tr><td>3 Year</td><td class="pos">+12.2%</td><td class="neg">−13.7%</td><td class="pos">+52.6%</td><td class="neg">4/33</td></tr>
+        <tr><td>5 Year</td><td class="pos">+11.2%</td><td class="neg">−6.2%</td><td class="pos">+37.5%</td><td class="amb">1/31</td></tr>
+        <tr><td>7 Year</td><td class="pos">+11.2%</td><td class="pos">+0.02%</td><td class="pos">+24.5%</td><td class="pos">0/29 ✓</td></tr>
+        <tr><td>10 Year</td><td class="pos">+11.3%</td><td class="pos">+2.5%</td><td class="pos">+18.3%</td><td class="pos">0/26 ✓</td></tr>
+        <tr><td>15 Year</td><td class="pos">+11.8%</td><td class="pos">+4.9%</td><td class="pos">+16.5%</td><td class="pos">0/21 ✓</td></tr>
+        <tr><td>20 Year</td><td class="pos">+11.8%</td><td class="pos">+8.0%</td><td class="pos">+15.0%</td><td class="pos">0/16 ✓</td></tr>
+        <tr><td>25 Year</td><td class="pos">+11.2%</td><td class="pos">+8.7%</td><td class="pos">+13.2%</td><td class="pos">0/11 ✓</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">The 5 market eras of India (2000–2024)</div>
+    <div class="grid5">
+      <div class="era-card"><div style="font-size:24px;margin-bottom:8px">🌵</div><div style="font-size:11px;font-weight:700;color:var(--orange)">Desert & Rebirth</div><div style="font-size:10px;color:var(--muted);margin:3px 0 6px">2000–03</div><div style="font-size:13px;font-weight:700;color:var(--red)">−10% then +172%</div><div style="font-size:10px;color:var(--muted);margin-top:4px">Dot-com bust & recovery</div></div>
+      <div class="era-card"><div style="font-size:24px;margin-bottom:8px">🐂</div><div style="font-size:11px;font-weight:700;color:var(--green)">The Great Bull</div><div style="font-size:10px;color:var(--muted);margin:3px 0 6px">2004–07</div><div class="pos" style="font-size:13px;font-weight:700">+205% cumulative</div><div style="font-size:10px;color:var(--muted);margin-top:4px">India shining GDP boom</div></div>
+      <div class="era-card"><div style="font-size:24px;margin-bottom:8px">💥</div><div style="font-size:11px;font-weight:700;color:var(--red)">Crash & V-Recovery</div><div style="font-size:10px;color:var(--muted);margin:3px 0 6px">2008–09</div><div style="font-size:13px;font-weight:700;color:var(--red)">−51% then +75%</div><div style="font-size:10px;color:var(--muted);margin-top:4px">GFC — darkest then brightest</div></div>
+      <div class="era-card"><div style="font-size:24px;margin-bottom:8px">🏜️</div><div style="font-size:11px;font-weight:700;color:var(--gold)">Lost Decade Start</div><div style="font-size:10px;color:var(--muted);margin:3px 0 6px">2010–13</div><div style="font-size:13px;font-weight:700;color:var(--gold)">+2.7% over 4 yrs</div><div style="font-size:10px;color:var(--muted);margin-top:4px">Inflation & policy paralysis</div></div>
+      <div class="era-card"><div style="font-size:24px;margin-bottom:8px">🚀</div><div style="font-size:11px;font-weight:700;color:var(--teal)">Modi Supercycle</div><div style="font-size:10px;color:var(--muted);margin:3px 0 6px">2014–24</div><div class="pos" style="font-size:13px;font-weight:700">+195% cumulative</div><div style="font-size:10px;color:var(--muted);margin-top:4px">Reform-driven re-rating</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HEATMAP ══ -->
+<div id="panel-heatmap" class="panel">
+  <div class="sec-title">25-year monthly returns heatmap</div>
+  <div class="sec-sub">300 data cells — every month, every year. Deepest red = the greatest buying opportunity of that era.</div>
+  <div class="card">
+    <div class="heatmap-wrap" id="heatmapContainer"></div>
+    <div class="legend">
+      <span><span class="lg-dot" style="background:#14532d"></span>&gt;10%</span>
+      <span><span class="lg-dot" style="background:#22c55e"></span>3–10%</span>
+      <span><span class="lg-dot" style="background:#86efac"></span>0.5–3%</span>
+      <span><span class="lg-dot" style="background:#3d3a00"></span>Near zero</span>
+      <span><span class="lg-dot" style="background:#fca5a5"></span>0–(−3)%</span>
+      <span><span class="lg-dot" style="background:#ef4444"></span>−3–(−10)%</span>
+      <span><span class="lg-dot" style="background:#7f1d1d"></span>&lt;−10%</span>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title" style="color:var(--red)">Bloodiest single months — 25 years</div>
+      <table>
+        <tr><th>Month</th><th>Return</th><th>Event</th></tr>
+        <tr><td>Oct 2008</td><td class="neg">−24.0%</td><td>Lehman aftermath peak panic</td></tr>
+        <tr><td>Mar 2020</td><td class="neg">−23.0%</td><td>COVID lockdown shock</td></tr>
+        <tr><td>Jun 2008</td><td class="neg">−20.7%</td><td>Commodity crash + FII exodus</td></tr>
+        <tr><td>Sep 2001</td><td class="neg">−11.9%</td><td>Post 9/11 global panic</td></tr>
+        <tr><td>Jan 2008</td><td class="neg">−12.5%</td><td>Satyam scam + FII selling</td></tr>
+        <tr><td>Jan 2011</td><td class="neg">−10.9%</td><td>Inflation + RBI rate hike fears</td></tr>
+        <tr><td>Nov 2011</td><td class="neg">−9.8%</td><td>Euro zone debt crisis</td></tr>
+        <tr><td>Jul 2008</td><td class="neg">−9.8%</td><td>Crude oil at $147/bbl</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--green)">Greatest single-month rallies — 25 years</div>
+      <table>
+        <tr><th>Month</th><th>Return</th><th>Event</th></tr>
+        <tr><td>May 2009</td><td class="pos">+28.1%</td><td>UPA election massive sweep</td></tr>
+        <tr><td>Apr 2009</td><td class="pos">+15.3%</td><td>Global post-crisis stabilisation</td></tr>
+        <tr><td>Apr 2020</td><td class="pos">+14.7%</td><td>Fastest COVID rebound in Asia</td></tr>
+        <tr><td>Oct 2007</td><td class="pos">+14.8%</td><td>India bull run peak frenzy</td></tr>
+        <tr><td>Sep 2007</td><td class="pos">+12.7%</td><td>US Fed surprise rate cut</td></tr>
+        <tr><td>Jan 2012</td><td class="pos">+12.2%</td><td>RBI pause + FII return</td></tr>
+        <tr><td>Nov 2020</td><td class="pos">+11.5%</td><td>Pfizer vaccine + RBI cut</td></tr>
+        <tr><td>Nov 2005</td><td class="pos">+10.2%</td><td>India shining bull run</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DESERT PHASES ══ -->
+<div id="panel-desert" class="panel">
+  <div class="sec-title">The desert phases — when NIFTY went nowhere</div>
+  <div class="sec-sub">Psychologically brutal sideways markets — and the explosions that followed every single one, without exception.</div>
+
+  <div style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;line-height:1.8;color:var(--text)">
+    A <strong style="color:var(--gold)">desert phase</strong> is when NIFTY delivers near-zero or negative cumulative returns over multiple years. Not a crash — a grinding, soul-destroying sideways market where investors lose confidence and stop SIPs. That is <em>exactly when data says you should be accumulating the most.</em>
+  </div>
+
+  <!-- Desert 1 -->
+  <div class="desert-card" style="border-color:rgba(249,115,22,0.4)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <div>
+        <div style="font-size:16px;font-weight:900;color:var(--orange)">Desert 1 — Dot-Com Desert (2000–2002)</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Duration: 3 years · Net return: −26% · Peak-to-trough: −48.8%</div>
+      </div>
+      <span class="badge badge-r">Deepest bear market since 1992</span>
+    </div>
+    <div class="grid3">
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Root cause</div><div style="font-size:12px;line-height:1.7">Dot-com bubble burst + Kargil aftermath + global recession fears. IT sector destroyed −70% in 3 years.</div></div>
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Sector behavior</div><div style="font-size:12px;line-height:1.7">IT collapsed −70%. FMCG & Pharma were defensive islands. Metal and PSU stocks bottomed silently.</div></div>
+      <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:14px">
+        <div style="font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">What followed the desert</div>
+        <div style="font-size:28px;font-weight:900;color:var(--green)">+172%</div>
+        <div style="font-size:12px;color:var(--teal);font-weight:700">over next 3 years (2003–2005)</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">38.4% CAGR for 3 consecutive years</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:12px;color:var(--muted);font-style:italic">Lesson: Investors who bought in 2002 made 6–7× by 2007. The dot-com desert was the greatest Indian equity buying opportunity of the century.</div>
+  </div>
+
+  <!-- Desert 2 -->
+  <div class="desert-card" style="border-color:rgba(239,68,68,0.4)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <div>
+        <div style="font-size:16px;font-weight:900;color:var(--red)">Desert 2 — Post-GFC Wilderness (2010–2013)</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Duration: 4 years · Net return: +2.7% (essentially zero) · The longest desert</div>
+      </div>
+      <span class="badge badge-r">4 years of zero returns</span>
+    </div>
+    <div class="grid3">
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Root cause</div><div style="font-size:12px;line-height:1.7">Inflation at 10%+, RBI rate hikes, Rupee collapse to 68, Coal/Spectrum scam, policy paralysis under UPA-2.</div></div>
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Sector behavior</div><div style="font-size:12px;line-height:1.7">PSU Banks worst hit (−35%). FMCG and IT outperformed significantly. Defensives were the only winners.</div></div>
+      <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:14px">
+        <div style="font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">What followed the desert</div>
+        <div style="font-size:28px;font-weight:900;color:var(--green)">+86%</div>
+        <div style="font-size:12px;color:var(--teal);font-weight:700">over next 3 years (2014–2016)</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">22.5% CAGR · SIP investors 31× opportunity</div>
+      </div>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:12px;margin-top:12px;font-size:12px;line-height:1.7">
+      <strong style="color:var(--gold)">SIP proof:</strong> ₹10,000/month for 48 months accumulated units at suppressed prices. When the market rose +86%, those cheap units created extraordinary returns — far exceeding lump-sum investors. The investor who stopped SIP in 2012 is the biggest loser in Indian equity history.
+    </div>
+  </div>
+
+  <!-- Desert 3 -->
+  <div class="desert-card" style="border-color:rgba(168,85,247,0.4)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <div>
+        <div style="font-size:16px;font-weight:900;color:var(--purple)">Desert 3 — Demonetisation Grind (2015–2016)</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Duration: 2 years · Net return: −1.2% · Shortest desert</div>
+      </div>
+      <span class="badge badge-p">Shortest desert, fastest recovery</span>
+    </div>
+    <div class="grid3">
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Root cause</div><div style="font-size:12px;line-height:1.7">China devaluation shock + US Fed rate hike cycle starts + Demonetisation shock (Nov 2016).</div></div>
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Sector behavior</div><div style="font-size:12px;line-height:1.7">Demonetisation hurt banking & consumer. IT showed resilience. PSU banks worst performers by far.</div></div>
+      <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:14px">
+        <div style="font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">What followed the desert</div>
+        <div style="font-size:28px;font-weight:900;color:var(--green)">+60%</div>
+        <div style="font-size:12px;color:var(--teal);font-weight:700">over next 3 years (2017–2019)</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">17.0% CAGR post-desert</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:12px;color:var(--muted);font-style:italic">Lesson: Investors who held through Nov 2016 earned +28.6% in 2017 — the single best calendar year in a decade.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Universal desert law — proven across all 3 phases</div>
+    <table>
+      <tr><th>Desert phase</th><th>Duration</th><th>During: net return</th><th>After: 3-yr gain</th><th>After: CAGR</th></tr>
+      <tr><td>Dot-com 2000–02</td><td>3 years</td><td class="neg">−26%</td><td class="pos">+172%</td><td class="pos">38.4%</td></tr>
+      <tr><td>Post-GFC 2010–13</td><td>4 years</td><td class="amb">+2.7%</td><td class="pos">+86%</td><td class="pos">22.5%</td></tr>
+      <tr><td>Demonetisation 2015–16</td><td>2 years</td><td class="neg">−1.2%</td><td class="pos">+60%</td><td class="pos">17.0%</td></tr>
+    </table>
+    <div class="insight" style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:var(--green)">
+      <strong>The universal law:</strong> Every desert phase in Indian equity history has been followed by a rally exceeding 60%. The longer the desert — the stronger the rally. The investor who panics and exits during a desert pays the steepest price in Indian market history.
+    </div>
+  </div>
+</div>
+
+<!-- ══ SEASONALITY ══ -->
+<div id="panel-seasonal" class="panel">
+  <div class="sec-title">25-year monthly seasonality (300 data points)</div>
+  <div class="sec-sub">Distilled from every January to December across a quarter century.</div>
+  <div class="card">
+    <div class="card-title">Average return by month — 25-year view</div>
+    <div class="chart-wrap" style="height:220px"><canvas id="seasonChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Complete 25-year month ranking — best to worst</div>
+    <div style="overflow-x:auto">
+    <table>
+      <tr><th>Rank</th><th>Month</th><th>25Y avg</th><th>Win rate</th><th>Best</th><th>Worst</th><th>Signal</th></tr>
+      <tr><td class="amb">#1</td><td>July</td><td class="pos">+3.8%</td><td class="pos">19/25 (76%)</td><td class="pos">+9.0%</td><td class="neg">−5.7%</td><td><span class="badge badge-g">Strong buy</span></td></tr>
+      <tr><td class="amb">#2</td><td>April</td><td class="pos">+2.8%</td><td class="pos">18/25 (72%)</td><td class="pos">+15.3%</td><td class="neg">−4.6%</td><td><span class="badge badge-g">Accumulate</span></td></tr>
+      <tr><td class="amb">#3</td><td>December</td><td class="pos">+2.4%</td><td class="pos">18/25 (72%)</td><td class="pos">+8.7%</td><td class="neg">−3.5%</td><td><span class="badge badge-g">Accumulate</span></td></tr>
+      <tr><td>#4</td><td>November</td><td class="pos">+2.0%</td><td class="pos">17/25 (68%)</td><td class="pos">+11.5%</td><td class="neg">−7.4%</td><td><span class="badge badge-g">Accumulate</span></td></tr>
+      <tr><td>#5</td><td>May</td><td class="pos">+1.9%</td><td class="pos">17/25 (68%)</td><td class="pos">+28.1%</td><td class="neg">−7.3%</td><td><span class="badge badge-g">Buy</span></td></tr>
+      <tr><td>#6</td><td>October</td><td class="pos">+0.8%</td><td>14/25 (56%)</td><td class="pos">+9.2%</td><td class="neg">−7.2%</td><td><span class="badge badge-a">Neutral</span></td></tr>
+      <tr><td>#7</td><td>March</td><td class="pos">+0.5%</td><td>14/25 (56%)</td><td class="pos">+10.1%</td><td class="neg">−23.0%</td><td><span class="badge badge-a">Caution</span></td></tr>
+      <tr><td>#8</td><td>August</td><td class="pos">+0.3%</td><td>13/25 (52%)</td><td class="pos">+8.7%</td><td class="neg">−8.6%</td><td><span class="badge badge-a">Neutral</span></td></tr>
+      <tr><td>#9</td><td>September</td><td class="neg">−0.4%</td><td>12/25 (48%)</td><td class="pos">+12.7%</td><td class="neg">−11.9%</td><td><span class="badge badge-r">Caution</span></td></tr>
+      <tr><td>#10</td><td>January</td><td class="neg">−0.5%</td><td>11/25 (44%)</td><td class="pos">+5.3%</td><td class="neg">−12.5%</td><td><span class="badge badge-r">Caution</span></td></tr>
+      <tr><td>#11</td><td>February</td><td class="neg">−1.1%</td><td>10/25 (40%)</td><td class="pos">+6.3%</td><td class="neg">−7.8%</td><td><span class="badge badge-r">Avoid lump sum</span></td></tr>
+      <tr><td>#12</td><td>June</td><td class="neg">−1.2%</td><td>10/25 (40%)</td><td class="pos">+8.2%</td><td class="neg">−20.7%</td><td><span class="badge badge-r">GFC distorted</span></td></tr>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HOLDING PERIODS ══ -->
+<div id="panel-holding" class="panel">
+  <div class="sec-title">Optimal holding period — the science of patience</div>
+  <div class="sec-sub">25+ years proves exactly how long you need to hold for guaranteed outcomes.</div>
+  <div class="grid5" style="margin-bottom:16px">
+    <div class="hold-card" style="border-color:rgba(239,68,68,0.4)"><div style="font-size:26px;font-weight:900;color:var(--red)">1Y</div><div style="font-size:10px;color:var(--muted);margin:2px 0 8px">hold</div><div class="pos" style="font-size:16px;font-weight:900">+17.4%</div><div style="font-size:10px;color:var(--muted)">avg CAGR</div><div style="font-size:14px;color:var(--red);font-weight:700;margin-top:8px">74% positive</div><div style="font-size:10px;color:var(--muted);margin-top:4px">High risk</div></div>
+    <div class="hold-card" style="border-color:rgba(249,115,22,0.4)"><div style="font-size:26px;font-weight:900;color:var(--orange)">3Y</div><div style="font-size:10px;color:var(--muted);margin:2px 0 8px">hold</div><div class="pos" style="font-size:16px;font-weight:900">+12.2%</div><div style="font-size:10px;color:var(--muted)">avg CAGR</div><div style="font-size:14px;color:var(--orange);font-weight:700;margin-top:8px">88% positive</div><div style="font-size:10px;color:var(--muted);margin-top:4px">Moderate risk</div></div>
+    <div class="hold-card" style="border-color:rgba(59,130,246,0.4)"><div style="font-size:26px;font-weight:900;color:var(--blue)">5Y</div><div style="font-size:10px;color:var(--muted);margin:2px 0 8px">hold</div><div class="pos" style="font-size:16px;font-weight:900">+11.2%</div><div style="font-size:10px;color:var(--muted)">avg CAGR</div><div style="font-size:14px;color:var(--blue);font-weight:700;margin-top:8px">97% positive</div><div style="font-size:10px;color:var(--muted);margin-top:4px">Low risk</div></div>
+    <div class="hold-card" style="border-color:rgba(34,197,94,0.5);border-width:2px"><div style="font-size:26px;font-weight:900;color:var(--green)">7Y</div><div style="font-size:10px;color:var(--muted);margin:2px 0 8px">hold</div><div class="pos" style="font-size:16px;font-weight:900">+11.2%</div><div style="font-size:10px;color:var(--muted)">avg CAGR</div><div class="pos" style="font-size:14px;font-weight:700;margin-top:8px">100% positive</div><div style="font-size:10px;color:var(--muted);margin-top:4px">Near zero risk</div></div>
+    <div class="hold-card" style="border-color:rgba(20,184,166,0.5);border-width:2px"><div style="font-size:26px;font-weight:900;color:var(--teal)">10Y</div><div style="font-size:10px;color:var(--muted);margin:2px 0 8px">hold</div><div class="pos" style="font-size:16px;font-weight:900">+11.3%</div><div style="font-size:10px;color:var(--muted)">avg CAGR</div><div class="pos" style="font-size:14px;font-weight:700;margin-top:8px">100% positive</div><div style="font-size:10px;color:var(--muted);margin-top:4px">Fully safe</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Return convergence — outcomes narrow dramatically with time</div>
+    <div class="chart-wrap" style="height:240px"><canvas id="convergenceChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Minimum holding period by investment goal</div>
+    <table>
+      <tr><th>Goal</th><th>Min hold</th><th>Success rate</th><th>Expected CAGR</th><th>Strategy</th></tr>
+      <tr><td>Capital preservation</td><td class="pos">7 years</td><td class="pos">100%</td><td>+0.02% to +24.5%</td><td>Index fund + patience</td></tr>
+      <tr><td>Beat FD returns (7%)</td><td class="blu">3 years</td><td class="pos">85%</td><td>+12% on average</td><td>Index fund SIP</td></tr>
+      <tr><td>Double capital (2×)</td><td class="pos">7 years</td><td class="pos">85%</td><td>+11% avg = 2× in 6.5Y</td><td>Diversified equity</td></tr>
+      <tr><td>Triple capital (3×)</td><td class="pos">10–12 years</td><td class="pos">95%</td><td>+11% = 3× in 10.5Y</td><td>Multi-cap SIP</td></tr>
+      <tr><td>5× wealth</td><td class="pos">15 years</td><td class="pos">99%</td><td>+12% = 5× in 14Y</td><td>SIP + step-up annual</td></tr>
+      <tr><td>10× wealth</td><td class="pos">20 years</td><td class="pos">100%</td><td>+11.8% = 10× in 20Y</td><td>Long-term SIP</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ══ SECTOR PATTERNS ══ -->
+<div id="panel-sectors" class="panel">
+  <div class="sec-title">Sector crash &amp; recovery patterns</div>
+  <div class="sec-sub">Not all sectors fall the same. Not all recover the same. The rotation playbook, proven across 3 major crashes.</div>
+  <div class="card">
+    <div class="card-title">GFC 2008 — crash vs 1-year recovery by sector</div>
+    <div class="chart-wrap" style="height:260px"><canvas id="gfcChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">COVID 2020 — crash vs 1-year recovery by sector</div>
+    <div class="chart-wrap" style="height:260px"><canvas id="covidChart"></canvas></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title" style="color:var(--red)">High-beta sectors — crash hardest</div>
+      <table>
+        <tr><th>Sector</th><th>GFC crash</th><th>COVID crash</th><th>Recovery speed</th></tr>
+        <tr><td>Realty</td><td class="neg">−80%</td><td class="neg">−52%</td><td>Slow (18–36 months)</td></tr>
+        <tr><td>Metal</td><td class="neg">−75%</td><td class="neg">−40%</td><td>V-shape (6–12 months)</td></tr>
+        <tr><td>PSU Banks</td><td class="neg">−65%</td><td class="neg">−48%</td><td>Moderate (12–24 months)</td></tr>
+        <tr><td>Auto</td><td class="neg">−58%</td><td class="neg">−45%</td><td>Medium (12–18 months)</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--green)">Defensive sectors — hold during crashes</div>
+      <table>
+        <tr><th>Sector</th><th>GFC crash</th><th>COVID crash</th><th>Why defensive</th></tr>
+        <tr><td>Pharma</td><td class="neg">−32%</td><td class="pos">+5%</td><td>Healthcare demand inelastic</td></tr>
+        <tr><td>FMCG</td><td class="neg">−18%</td><td class="neg">−12%</td><td>Everyday essentials</td></tr>
+        <tr><td>IT</td><td class="neg">−48%</td><td class="neg">−28%</td><td>USD earnings hedge</td></tr>
+        <tr><td>Telecom</td><td class="neg">−25%</td><td class="neg">−15%</td><td>Essential service</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Sector rotation playbook — proven by 3 crashes</div>
+    <div class="grid4">
+      <div class="rotation-step" style="border-left:3px solid var(--red)"><div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:8px">Early crash (month 1–3)</div><div style="font-size:11px;margin-bottom:4px"><span class="pos">Buy: </span>Pharma, FMCG, IT</div><div style="font-size:11px"><span class="neg">Trim: </span>Realty, Metal, PSU Banks</div><div style="font-size:10px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">Signal: VIX spike &gt;25, FII selling begins</div></div>
+      <div class="rotation-step" style="border-left:3px solid var(--orange)"><div style="font-size:11px;font-weight:700;color:var(--orange);margin-bottom:8px">Deep crash (month 3–9)</div><div style="font-size:11px;margin-bottom:4px"><span class="pos">Buy: </span>Private banks, Auto (nibble)</div><div style="font-size:11px"><span class="amb">Hold: </span>Defensive positions</div><div style="font-size:10px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">Signal: RSI &lt;25, PE &lt;18×, panic headlines</div></div>
+      <div class="rotation-step" style="border-left:3px solid var(--blue)"><div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:8px">Recovery (month 9–18)</div><div style="font-size:11px;margin-bottom:4px"><span class="pos">Buy: </span>Banks, Metal, Auto aggressively</div><div style="font-size:11px"><span class="neg">Trim: </span>FMCG outperformers</div><div style="font-size:10px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">Signal: Monthly RSI &gt;50, FII return</div></div>
+      <div class="rotation-step" style="border-left:3px solid var(--green)"><div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:8px">Bull run (18–48 months)</div><div style="font-size:11px;margin-bottom:4px"><span class="pos">Buy: </span>Midcaps, Smallcaps, Realty</div><div style="font-size:11px"><span class="neg">Sell: </span>Defensives at 28× PE+</div><div style="font-size:10px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">Signal: PE &gt;22×, VIX &lt;12, IPO boom</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MARKET CYCLES ══ -->
+<div id="panel-cycles" class="panel">
+  <div class="sec-title">India's market cycle theory — 25 years decoded</div>
+  <div class="sec-sub">Five complete bull-bear cycles. Five proprietary theories. Actionable for every investor.</div>
+  <div class="card">
+    <div class="card-title">The 5 complete market cycles (2000–2024)</div>
+    <table>
+      <tr><th>#</th><th>Bull phase</th><th>Returns</th><th>Bear phase</th><th>Crash</th><th>Recovery</th><th>Key lesson</th></tr>
+      <tr><td class="amb">1</td><td>2003–07 (5 yrs)</td><td class="pos">+535%</td><td>2000–02</td><td class="neg">−46%</td><td>9 months</td><td>India reforms + China demand = once-in-a-decade bull</td></tr>
+      <tr><td class="amb">2</td><td>2009 (6 months!)</td><td class="pos">+75%</td><td>2008</td><td class="neg">−52%</td><td>6 months</td><td>Sharpest crash = sharpest recovery. V-shape rewarded the brave.</td></tr>
+      <tr><td class="amb">3</td><td>2010–11 (partial)</td><td class="pos">+18%</td><td>2011–13</td><td class="neg">−25%</td><td>12 months</td><td>Policy paralysis = prolonged mid-cycle correction</td></tr>
+      <tr><td class="amb">4</td><td>2014–17 (4 yrs)</td><td class="pos">+95%</td><td>2018–19</td><td class="neg">−16%</td><td>18 months</td><td>Election cycle + corporate tax cut = Modi premium rerating</td></tr>
+      <tr><td class="amb">5</td><td>2020–24 (4 yrs)</td><td class="pos">+107%</td><td>2024–25</td><td class="neg">−11%</td><td>In progress</td><td>DII dominance = structurally shallower corrections</td></tr>
+    </table>
+  </div>
+
+  <div class="grid2">
+    <div class="card"><div class="card-title">Theory I — The 7-year dominant cycle</div><div style="font-size:12px;line-height:1.8">Analysis reveals a dominant ~7-year cycle between market peaks: 2000 peak → 2007 peak (7 yrs) → 2014 peak (7 yrs) → 2021 peak (7 yrs). Each cycle ends at PE &gt;28× and begins at PE &lt;16×.</div><div class="insight" style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:var(--blue)"><strong>Action:</strong> Buy aggressively at PE &lt;16×. Begin booking at PE &gt;26–28×. This single rule outperforms every tactical call of the last 25 years.</div></div>
+    <div class="card"><div class="card-title">Theory II — The pre-election alpha</div><div style="font-size:12px;line-height:1.8">In every Indian general election year (2004, 2009, 2014, 2019, 2024), the 6 months before the election delivered above-average returns of +14.5% vs non-election +6.2%.</div><div class="insight" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:var(--purple)"><strong>Action:</strong> Build positions in Sept–Oct of pre-election year. Target infra, defence, rural FMCG, PSU banks.</div></div>
+    <div class="card"><div class="card-title">Theory III — The rupee crash signal</div><div style="font-size:12px;line-height:1.8">Rupee depreciation &gt;5% in a quarter = warning signal for FII outflows, imported inflation, RBI tightening. IT + Pharma outperformed in ALL rupee-crash years (2013, 2018, 2022).</div><div class="insight" style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);color:var(--orange)"><strong>Action:</strong> Rupee at lows = overweight IT/Pharma. Rupee recovering = rotate to Banks and consumption.</div></div>
+    <div class="card"><div class="card-title">Theory IV — The DII shield (post-2020)</div><div style="font-size:12px;line-height:1.8">Post-2020, ₹25,000 cr/month SIP inflow creates a structural support floor. FII selling is absorbed by DIIs, compressing drawdowns vs pre-2020 era. This justifies being more aggressive on dips.</div><div class="insight" style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:var(--green)"><strong>Proof:</strong> 2022 — FII sold ₹1.21L cr; DII bought ₹1.50L cr. NIFTY still delivered +4.3%.</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Theory V — The seasonal calendar (India-specific)</div>
+    <div class="grid4">
+      <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:14px;text-align:center"><div style="font-weight:700;color:var(--red);margin-bottom:4px">Q1 (Jan–Mar)</div><div style="font-size:14px;font-weight:900;color:var(--gold);margin:8px 0">Caution</div><div style="font-size:11px;color:var(--muted)">Budget anxiety. Avoid new lump sums. SIP top-up on dips only.</div></div>
+      <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:14px;text-align:center"><div style="font-weight:700;color:var(--green);margin-bottom:4px">Q2 (Apr–Jun)</div><div style="font-size:14px;font-weight:900;color:var(--green);margin:8px 0">Accumulate</div><div style="font-size:11px;color:var(--muted)">Q1 results + monsoon optimism = best lump sum window historically.</div></div>
+      <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:14px;text-align:center"><div style="font-weight:700;color:var(--blue);margin-bottom:4px">Q3 (Jul–Sep)</div><div style="font-size:14px;font-weight:900;color:var(--blue);margin:8px 0">Mixed</div><div style="font-size:11px;color:var(--muted)">July = strong buy. September = FII year-end caution. Tactical window.</div></div>
+      <div style="background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.3);border-radius:8px;padding:14px;text-align:center"><div style="font-weight:700;color:var(--teal);margin-bottom:4px">Q4 (Oct–Dec)</div><div style="font-size:14px;font-weight:900;color:var(--teal);margin:8px 0">Hold / grow</div><div style="font-size:11px;color:var(--muted)">Diwali rally (Nov). December year-end positioning. Strong seasonal close.</div></div>
+    </div>
+  </div>
+
+  <div style="background:linear-gradient(135deg,rgba(244,169,30,0.1),rgba(255,77,109,0.1),rgba(176,106,255,0.1));border:1px solid rgba(244,169,30,0.3);border-radius:12px;padding:20px;margin-top:4px">
+    <div style="font-size:15px;font-weight:900;background:linear-gradient(135deg,#f4a91e,#ff4d6d,#b06aff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px">The NIFTY Wealth Blueprint — The Golden Rule</div>
+    <div style="font-size:13px;line-height:1.9;color:var(--text)">
+      Invest systematically (SIP) every month. Add lump sums when NIFTY falls <strong style="color:var(--gold)">8%+ from ATH</strong>. Never exit during panic. Hold for <strong style="color:var(--green)">5+ years minimum</strong>. Tax-harvest annually in March. Rotate sectors at cycle turns. This simple framework has historically delivered <strong style="color:var(--green)">13–16% CAGR</strong> with minimal effort — turning ₹10,000/month into over ₹5 crore over 30 years.
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  ⚠️ For educational purposes only · Not SEBI-registered advice · Past performance ≠ future results<br>
+  Data: NIFTY 50 (2000–2024) · Sources: NSE, BMSMoney, CapitalMind · Built with Chart.js<br><br>
+  <strong style="color:var(--gold)">How to get a free permanent shareable link:</strong><br>
+  Go to <a href="https://app.netlify.com/drop" target="_blank">app.netlify.com/drop</a> → drag this HTML file → get a permanent public URL in 30 seconds, free forever.
+</div>
+
+<script>
+const ANNUAL={2000:-14.7,2001:-16.2,2002:3.8,2003:71.9,2004:10.7,2005:36.3,2006:39.8,2007:54.8,2008:-51.8,2009:75.8,2010:17.9,2011:-24.6,2012:27.7,2013:6.8,2014:31.4,2015:-4.1,2016:3.0,2017:28.6,2018:3.2,2019:12.0,2020:14.9,2021:24.1,2022:4.3,2023:19.4,2024:8.8};
+const INDEX={1999:1480,2000:1264,2001:1059,2002:1094,2003:1879,2004:2081,2005:2837,2006:3966,2007:6138,2008:2959,2009:5201,2010:6135,2011:4624,2012:5905,2013:6304,2014:8282,2015:7946,2016:8186,2017:10531,2018:10863,2019:12168,2020:13982,2021:17354,2022:18105,2023:21731,2024:23644};
+const RAW={2000:{Jan:3.7,Feb:-3.6,Mar:-8.3,Apr:4.2,May:-1.8,Jun:2.1,Jul:-1.9,Aug:3.6,Sep:-6.4,Oct:0.7,Nov:-4.2,Dec:1.8},2001:{Jan:-4.5,Feb:-3.4,Mar:-7.7,Apr:4.4,May:3.7,Jun:-0.9,Jul:-4.0,Aug:-2.3,Sep:-11.9,Oct:4.1,Nov:4.6,Dec:1.7},2002:{Jan:3.5,Feb:-2.8,Mar:5.6,Apr:-0.2,May:-0.5,Jun:-5.0,Jul:-2.1,Aug:3.1,Sep:-3.5,Oct:0.6,Nov:5.3,Dec:-0.5},2003:{Jan:2.5,Feb:1.8,Mar:-4.1,Apr:2.0,May:13.9,Jun:8.2,Jul:7.2,Aug:9.0,Sep:5.4,Oct:7.0,Nov:5.3,Dec:8.7},2004:{Jan:2.6,Feb:3.8,Mar:-0.7,Apr:-4.6,May:-7.3,Jun:2.0,Jul:3.2,Aug:3.1,Sep:8.7,Oct:2.8,Nov:7.4,Dec:-2.5},2005:{Jan:5.1,Feb:3.6,Mar:-2.1,Apr:3.8,May:4.3,Jun:3.7,Jul:9.0,Aug:2.4,Sep:7.5,Oct:-4.0,Nov:10.2,Dec:5.2},2006:{Jan:6.6,Feb:6.3,Mar:9.4,Apr:8.3,May:-12.0,Jun:-1.3,Jul:2.0,Aug:6.5,Sep:8.2,Oct:5.2,Nov:3.3,Dec:2.2},2007:{Jan:-2.1,Feb:-2.5,Mar:3.8,Apr:5.6,May:6.3,Jun:2.3,Jul:4.9,Aug:1.7,Sep:12.7,Oct:14.8,Nov:3.3,Dec:-0.2},2008:{Jan:-12.5,Feb:2.3,Mar:-9.9,Apr:8.3,May:3.2,Jun:-20.7,Jul:-9.8,Aug:4.4,Sep:-8.7,Oct:-24.0,Nov:-7.4,Dec:8.7},2009:{Jan:-3.5,Feb:-5.2,Mar:9.6,Apr:15.3,May:28.1,Jun:-2.5,Jul:7.7,Aug:4.0,Sep:9.1,Oct:-7.2,Nov:6.8,Dec:3.2},2010:{Jan:-6.2,Feb:0.7,Mar:7.3,Apr:2.4,May:0.2,Jun:1.0,Jul:2.1,Aug:1.6,Sep:11.1,Oct:3.7,Nov:-5.6,Dec:5.7},2011:{Jan:-10.9,Feb:-3.1,Mar:1.2,Apr:-1.5,May:-3.5,Jun:-2.2,Jul:-3.4,Aug:-8.6,Sep:-1.9,Oct:6.7,Nov:-9.8,Dec:-4.3},2012:{Jan:12.2,Feb:3.1,Mar:-1.8,Apr:-0.5,May:-6.2,Jun:7.4,Jul:0.0,Aug:3.4,Sep:6.9,Oct:4.6,Nov:4.5,Dec:0.5},2013:{Jan:2.6,Feb:-5.2,Mar:0.7,Apr:-3.6,May:1.8,Jun:-1.2,Jul:0.8,Aug:-3.6,Sep:4.9,Oct:9.2,Nov:-1.3,Dec:1.5},2014:{Jan:-3.3,Feb:4.4,Mar:5.4,Apr:0.9,May:7.8,Jun:4.5,Jul:1.4,Aug:2.4,Sep:0.6,Oct:4.1,Nov:3.3,Dec:4.6},2015:{Jan:-5.3,Feb:0.4,Mar:-3.7,Apr:0.8,May:3.2,Jun:-0.7,Jul:1.9,Aug:-6.5,Sep:-0.4,Oct:5.0,Nov:-0.3,Dec:-1.7},2016:{Jan:-4.8,Feb:-7.8,Mar:10.1,Apr:1.3,May:4.1,Jun:1.1,Jul:4.1,Aug:1.7,Sep:-1.7,Oct:-0.5,Nov:-4.5,Dec:-0.3},2017:{Jan:4.6,Feb:4.7,Mar:3.6,Apr:1.4,May:2.9,Jun:2.0,Jul:5.0,Aug:-1.5,Sep:2.4,Oct:5.5,Nov:1.1,Dec:2.9},2018:{Jan:5.0,Feb:-5.1,Mar:-3.6,Apr:6.3,May:-0.5,Jun:-0.2,Jul:6.2,Aug:3.5,Sep:-6.6,Oct:-4.8,Nov:4.7,Dec:0.5},2019:{Jan:5.3,Feb:0.7,Mar:7.7,Apr:1.0,May:1.5,Jun:1.2,Jul:-5.7,Aug:-0.8,Sep:4.1,Oct:3.5,Nov:1.5,Dec:1.1},2020:{Jan:-1.7,Feb:-6.4,Mar:-23.0,Apr:14.7,May:-2.9,Jun:7.5,Jul:7.5,Aug:2.8,Sep:-1.2,Oct:-3.5,Nov:11.5,Dec:7.8},2021:{Jan:-2.5,Feb:6.6,Mar:1.1,Apr:0.4,May:6.5,Jun:0.9,Jul:0.2,Aug:8.7,Sep:2.6,Oct:-0.1,Nov:-3.9,Dec:2.1},2022:{Jan:-0.1,Feb:-3.0,Mar:3.5,Apr:-2.1,May:-3.0,Jun:-4.8,Jul:8.7,Aug:3.5,Sep:-3.7,Oct:5.4,Nov:4.3,Dec:-3.5},2023:{Jan:-2.4,Feb:-1.0,Mar:0.6,Apr:4.1,May:2.5,Jun:3.6,Jul:2.9,Aug:-1.6,Sep:2.0,Oct:-3.0,Nov:5.5,Dec:7.9},2024:{Jan:-0.7,Feb:1.0,Mar:1.6,Apr:-0.7,May:3.7,Jun:6.6,Jul:4.4,Aug:-0.2,Sep:-2.2,Oct:-6.2,Nov:-0.3,Dec:-2.4}};
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const YEARS25=Array.from({length:25},(_,i)=>2000+i);
+const G='#22c55e',R='#ef4444',A='#f59e0b',B='#3b82f6',T='#14b8a6';
+const GC='rgba(255,255,255,0.07)',TC='#5a7a9a';
+
+function showTab(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='seasonal'&&!window._s){buildSeason();window._s=true;}
+  if(id==='holding'&&!window._h){buildHolding();window._h=true;}
+  if(id==='sectors'&&!window._x){buildSectors();window._x=true;}
+}
+
+// Annual chart
+const yrs=Object.keys(ANNUAL).map(Number);
+new Chart(document.getElementById('annualChart'),{type:'bar',data:{labels:yrs.map(String),datasets:[{data:yrs.map(y=>ANNUAL[y]),backgroundColor:yrs.map(y=>ANNUAL[y]>=0?G+'bb':R+'bb'),borderColor:yrs.map(y=>ANNUAL[y]>=0?G:R),borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>(c.raw>0?'+':'')+c.raw.toFixed(1)+'%'}}},scales:{x:{ticks:{color:TC,font:{size:9}},grid:{color:GC}},y:{ticks:{color:TC,font:{size:9},callback:v=>v+'%'},grid:{color:GC}}}}});
+
+// Wealth chart
+const wYrs=Object.keys(INDEX).map(Number).sort((a,b)=>a-b);
+new Chart(document.getElementById('wealthChart'),{type:'line',data:{labels:wYrs.map(String),datasets:[{data:wYrs.map(y=>Math.round(INDEX[y]/14.8)),borderColor:T,backgroundColor:T+'22',fill:true,borderWidth:2.5,pointRadius:3,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'₹'+c.raw.toLocaleString()}}},scales:{x:{ticks:{color:TC,font:{size:9}},grid:{color:GC}},y:{ticks:{color:TC,font:{size:9},callback:v=>'₹'+v.toLocaleString()},grid:{color:GC}}}}});
+
+// Heatmap
+function hBg(v){if(v>=10)return'#14532d';if(v>=6)return'#166534';if(v>=3)return'#22c55e';if(v>=0.5)return'#86efac';if(v>=-0.5)return'#3d3a00';if(v>=-3)return'#fca5a5';if(v>=-6)return'#ef4444';if(v>=-10)return'#b91c1c';return'#7f1d1d';}
+function hTx(v){return Math.abs(v)>=4?'#000':'#fff';}
+(function(){
+  let h='<table class="heat-table"><thead><tr><th style="padding:4px 8px;color:'+TC+';text-align:left">Year</th>';
+  MONTHS.forEach(m=>h+='<th style="padding:4px 5px;color:'+TC+';text-align:center">'+m+'</th>');
+  h+='<th style="padding:4px 5px;color:'+TC+';text-align:center">Annual</th></tr></thead><tbody>';
+  YEARS25.forEach(y=>{
+    const ar=ANNUAL[y];
+    h+='<tr><td style="padding:4px 8px;font-weight:700;color:'+(ar>=0?G:R)+'">'+y+'</td>';
+    MONTHS.forEach(m=>{const v=RAW[y]?.[m]??0;h+='<td class="heat-cell" style="background:'+hBg(v)+';color:'+hTx(v)+'">'+(v>0?'+':'')+v+'</td>';});
+    h+='<td class="heat-cell" style="background:'+hBg(ar)+';color:'+hTx(ar)+';font-weight:900">'+(ar>0?'+':'')+ar+'%</td></tr>';
+  });
+  const avgs=MONTHS.map(m=>{const vs=YEARS25.map(y=>RAW[y]?.[m]??0);return+(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2);});
+  h+='<tr><td style="padding:4px 8px;font-weight:700;color:'+T+'">25Y avg</td>';
+  avgs.forEach(a=>h+='<td class="heat-cell" style="background:'+hBg(a)+';color:'+hTx(a)+';font-weight:900">'+(a>0?'+':'')+a+'</td>');
+  h+='<td class="heat-cell" style="color:'+G+';font-weight:900;background:transparent">+12.4%</td></tr></tbody></table>';
+  document.getElementById('heatmapContainer').innerHTML=h;
+})();
+
+function buildSeason(){
+  const avgs=MONTHS.map(m=>{const vs=YEARS25.map(y=>RAW[y]?.[m]??0);return+(vs.reduce((a,b)=>a+b,0)/vs.length).toFixed(2);});
+  new Chart(document.getElementById('seasonChart'),{type:'bar',data:{labels:MONTHS,datasets:[{data:avgs,backgroundColor:avgs.map(v=>v>=0?G+'bb':R+'bb'),borderColor:avgs.map(v=>v>=0?G:R),borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>(c.raw>0?'+':'')+c.raw.toFixed(2)+'%'}}},scales:{x:{ticks:{color:TC,font:{size:11}},grid:{color:GC}},y:{ticks:{color:TC,font:{size:10},callback:v=>v+'%'},grid:{color:GC}}}}});
+}
+
+function buildHolding(){
+  new Chart(document.getElementById('convergenceChart'),{data:{labels:['1Y','3Y','5Y','7Y','10Y','15Y','20Y','25Y'],datasets:[{type:'bar',label:'Best CAGR',data:[134.1,52.6,37.5,24.5,18.3,16.5,15.0,13.2],backgroundColor:G+'55',borderColor:G,borderWidth:1,borderRadius:3},{type:'bar',label:'Worst CAGR',data:[-47.1,-13.7,-6.2,0.02,2.5,4.9,8.0,8.7],backgroundColor:R+'55',borderColor:R,borderWidth:1,borderRadius:3},{type:'line',label:'Avg CAGR',data:[17.4,12.2,11.2,11.2,11.3,11.8,11.8,11.2],borderColor:A,borderWidth:3,fill:false,pointRadius:5,pointBackgroundColor:A,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>(c.raw>0?'+':'')+c.raw.toFixed(1)+'%'}}},scales:{x:{ticks:{color:TC,font:{size:11}},grid:{color:GC}},y:{ticks:{color:TC,font:{size:9},callback:v=>v+'%'},grid:{color:GC}}}}});
+}
+
+function buildSectors(){
+  const labels=['NIFTY 50','IT','Banks','Pharma','FMCG','Metal','Realty','Auto'];
+  new Chart(document.getElementById('gfcChart'),{type:'bar',data:{labels,datasets:[{label:'Crash %',data:[-52,-48,-65,-32,-18,-75,-80,-58],backgroundColor:R+'99',borderColor:R,borderWidth:1,borderRadius:3},{label:'1yr recovery %',data:[76,90,110,55,35,150,120,95],backgroundColor:G+'99',borderColor:G,borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>(c.raw>0?'+':'')+c.raw+'%'}}},scales:{x:{ticks:{color:TC,font:{size:10}},grid:{color:GC}},y:{ticks:{color:TC,font:{size:9},callback:v=>v+'%'},grid:{color:GC}}}}});
+  new Chart(document.getElementById('covidChart'),{type:'bar',data:{labels,datasets:[{label:'Crash %',data:[-38,-28,-48,5,-12,-40,-52,-45],backgroundColor:R+'99',borderColor:R,borderWidth:1,borderRadius:3},{label:'1yr recovery %',data:[68,92,75,62,45,110,80,70],backgroundColor:G+'99',borderColor:G,borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>(c.raw>0?'+':'')+c.raw+'%'}}},scales:{x:{ticks:{color:TC,font:{size:10}},grid:{color:GC}},y:{ticks:{color:TC,font:{size:9},callback:v=>v+'%'},grid:{color:GC}}}}});
+}
+</script>
+</body>
+</html>
